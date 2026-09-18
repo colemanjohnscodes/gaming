@@ -58,6 +58,17 @@ After a Vercel preview exists, add that URL and `/auth/callback` as well. When t
 
 Do not point Auth at listing/CRM apps for this sitting.
 
+### Letter copy (human)
+
+SMTP can send from a Coleman Johns address. The wording of the letter is still an Auth template.
+
+In **Authentication → Email Templates**, paste:
+
+- Magic Link — subject `A letter from The Parlor`, body from `supabase/emails/magic-link.html`
+- Confirm signup — subject `A letter from The Parlor`, body from `supabase/emails/confirm-signup.html`
+
+Keep `{{ .ConfirmationURL }}` in the body. That is the seat held in the letter.
+
 ## Deploy (Vercel)
 
 Preview is enough for first launch. The custom domain can wait.

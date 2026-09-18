@@ -1,32 +1,70 @@
 "use client";
 
 import { useState } from "react";
-import { withdrawName } from "@/app/login/actions";
+import { amendName, withdrawName } from "@/app/login/actions";
+import { savePendingName } from "@/lib/pending-name";
+import { DISPLAY_NAME_MAX, DISPLAY_NAME_MIN } from "@/lib/scores";
 import { createClient } from "@/lib/supabase/client";
+
+const fieldClass =
+  "mt-2 w-full border border-gold/80 bg-background px-3 py-2 text-cream outline-none focus:border-gold";
 
 type LoginFormProps = {
   nextPath: string;
   email: string | null;
+  displayName: string | null;
   errorCode: string | null;
 };
 
-export function LoginForm({ nextPath, email, errorCode }: LoginFormProps) {
+export function LoginForm({
+  nextPath,
+  email,
+  displayName,
+  errorCode,
+}: LoginFormProps) {
   const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">(
     errorCode ? "error" : "idle",
   );
   const [message, setMessage] = useState(
-    errorCode === "link"
-      ? "That letter could not be honored."
-      : "",
+    errorCode === "link" ? "That letter could not be honored." : "",
   );
 
   if (email) {
     return (
       <div className="space-y-6">
         <p className="text-sm leading-relaxed text-ink-muted">
-          You are in the book as{" "}
-          <span className="text-cream">{email}</span>.
+          You are in the book
+          {displayName ? (
+            <>
+              {" "}
+              as <span className="text-cream">{displayName}</span>
+            </>
+          ) : null}
+          .
         </p>
+        <form action={amendName} className="space-y-4">
+          <label className="block">
+            <span className="text-xs tracking-[0.16em] text-ink-muted">
+              Name in the book
+            </span>
+            <input
+              type="text"
+              name="display_name"
+              required
+              minLength={DISPLAY_NAME_MIN}
+              maxLength={DISPLAY_NAME_MAX}
+              defaultValue={displayName ?? ""}
+              autoComplete="nickname"
+              className={fieldClass}
+            />
+          </label>
+          <button
+            type="submit"
+            className="border border-gold/80 px-4 py-2 text-sm tracking-[0.14em] text-cream hover:border-gold hover:text-gold focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-4 focus-visible:outline-gold"
+          >
+            Amend the name
+          </button>
+        </form>
         <form action={withdrawName}>
           <button
             type="submit"
@@ -40,12 +78,19 @@ export function LoginForm({ nextPath, email, errorCode }: LoginFormProps) {
   }
 
   async function onSubmit(formData: FormData) {
+    const givenName = String(formData.get("display_name") ?? "");
     const address = String(formData.get("email") ?? "")
       .trim()
       .toLowerCase();
+    const stored = savePendingName(givenName);
+    if (!stored) {
+      setStatus("error");
+      setMessage("A name of two to twenty letters, if you please.");
+      return;
+    }
     if (!address || !address.includes("@")) {
       setStatus("error");
-      setMessage("A proper name, if you please.");
+      setMessage("Correspondence is required.");
       return;
     }
 
@@ -83,6 +128,20 @@ export function LoginForm({ nextPath, email, errorCode }: LoginFormProps) {
     <form action={onSubmit} className="space-y-6">
       <label className="block">
         <span className="text-xs tracking-[0.16em] text-ink-muted">
+          Name in the book
+        </span>
+        <input
+          type="text"
+          name="display_name"
+          required
+          minLength={DISPLAY_NAME_MIN}
+          maxLength={DISPLAY_NAME_MAX}
+          autoComplete="nickname"
+          className={fieldClass}
+        />
+      </label>
+      <label className="block">
+        <span className="text-xs tracking-[0.16em] text-ink-muted">
           Correspondence
         </span>
         <input
@@ -90,7 +149,7 @@ export function LoginForm({ nextPath, email, errorCode }: LoginFormProps) {
           name="email"
           required
           autoComplete="email"
-          className="mt-2 w-full border border-gold/80 bg-background px-3 py-2 text-cream outline-none focus:border-gold"
+          className={fieldClass}
         />
       </label>
       <button

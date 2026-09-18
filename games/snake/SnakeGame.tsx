@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { ParlorPanel } from "@/components/ParlorPanel";
+import { loadPendingName } from "@/lib/pending-name";
 import {
   clearPendingScore,
   loadPendingScore,
@@ -104,7 +105,9 @@ export function SnakeGame({ signedIn }: { signedIn: boolean }) {
     setLedgerReason("");
     try {
       const supabase = createClient();
-      const result = await recordParlorScore(supabase, input);
+      const result = await recordParlorScore(supabase, input, {
+        displayName: loadPendingName() ?? undefined,
+      });
       if (result.ok) {
         clearPendingScore();
         setLedgerNote("recorded");

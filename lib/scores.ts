@@ -32,7 +32,7 @@ export type LedgerEntry = {
   display_name: string;
 };
 
-const NAME_CHARS = /[^A-Za-z0-9 ._-]/g;
+const EMAIL_NAME_CHARS = /[^A-Za-z0-9 ._-]/g;
 
 function isParlorGame(game: string): game is ParlorGame {
   return (PARLOR_GAMES as readonly string[]).includes(game);
@@ -52,9 +52,18 @@ function profileName(
 
 export function displayNameFromEmail(email: string): string {
   const prefix = email.split("@")[0] ?? "guest";
-  const cleaned = prefix.replace(NAME_CHARS, "").trim();
-  const base = cleaned.length >= DISPLAY_NAME_MIN ? cleaned : `g-${cleaned || "uest"}`;
+  const cleaned = prefix.replace(EMAIL_NAME_CHARS, "").trim();
+  const base =
+    cleaned.length >= DISPLAY_NAME_MIN ? cleaned : `g-${cleaned || "uest"}`;
   return base.slice(0, DISPLAY_NAME_MAX);
+}
+
+export function normalizeDisplayName(raw: string): string | null {
+  const name = raw.trim().replace(/\s+/g, " ");
+  if (name.length < DISPLAY_NAME_MIN || name.length > DISPLAY_NAME_MAX) {
+    return null;
+  }
+  return name;
 }
 
 export function validateScore(input: ScoreInput): ScoreCheck {
@@ -99,7 +108,9 @@ async function currentUser(supabase: ParlorClient): Promise<User | null> {
 export async function ensureParlorProfile(
   supabase: ParlorClient,
   user: User,
+  preferredName?: string,
 ): Promise<{ ok: true; profile: ParlorProfile } | { ok: false; reason: string }> {
+  const chosen = preferredName ? normalizeDisplayName(preferredName) : null;
   const { data: existing, error: readError } = await supabase
     .from("parlor_profiles")
     .select("id, display_name, created_at, updated_at")
@@ -109,11 +120,27 @@ export async function ensureParlorProfile(
   if (readError) {
     return { ok: false, reason: "The book could not be opened." };
   }
+
   if (existing) {
-    return { ok: true, profile: existing };
+    if (!chosen || chosen === existing.display_name) {
+      return { ok: true, profile: existing };
+    }
+    const { data: updated, error: updateError } = await supabase
+      .from("parlor_profiles")
+      .update({
+        display_name: chosen,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", user.id)
+      .select("id, display_name, created_at, updated_at")
+      .single();
+    if (updateError || !updated) {
+      return { ok: false, reason: "The book could not take a name." };
+    }
+    return { ok: true, profile: updated };
   }
 
-  const displayName = displayNameFromEmail(user.email ?? "guest");
+  const displayName = chosen ?? displayNameFromEmail(user.email ?? "guest");
   const { data: created, error: insertError } = await supabase
     .from("parlor_profiles")
     .insert({ id: user.id, display_name: displayName })
@@ -129,6 +156,7 @@ export async function ensureParlorProfile(
 export async function recordParlorScore(
   supabase: ParlorClient,
   input: ScoreInput,
+  options: { displayName?: string } = {},
 ): Promise<{ ok: true; score: ParlorScore } | { ok: false; reason: string }> {
   const check = validateScore(input);
   if (!check.ok) {
@@ -140,7 +168,11 @@ export async function recordParlorScore(
     return { ok: false, reason: "Leave a name first." };
   }
 
-  const profile = await ensureParlorProfile(supabase, user);
+  const profile = await ensureParlorProfile(
+    supabase,
+    user,
+    options.displayName,
+  );
   if (!profile.ok) {
     return profile;
   }

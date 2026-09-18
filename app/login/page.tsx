@@ -18,16 +18,25 @@ export default async function LoginPage({
   const params = await searchParams;
   const supabase = await createClient();
   const { data } = await supabase.auth.getUser();
+  const { data: profile } = data.user
+    ? await supabase
+        .from("parlor_profiles")
+        .select("display_name")
+        .eq("id", data.user.id)
+        .maybeSingle()
+    : { data: null };
 
   return (
     <ParlorPanel className="mx-auto max-w-xl">
       <h1 className="font-serif text-3xl text-cream">Leave a name</h1>
       <p className="mt-4 mb-8 text-sm leading-relaxed text-ink-muted">
-        The house will write. Guests may still play.
+        The name in the book is how you will be known on The Ledger.
+        Guests may still play.
       </p>
       <LoginForm
         nextPath={safeNextPath(params.next ?? "/")}
         email={data.user?.email ?? null}
+        displayName={profile?.display_name ?? null}
         errorCode={params.error ?? null}
       />
     </ParlorPanel>

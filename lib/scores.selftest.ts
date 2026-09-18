@@ -3,6 +3,7 @@ import {
   GRID_20_SCORE_SOFT_CAP,
   MIN_MS_PER_POINT,
   displayNameFromEmail,
+  normalizeDisplayName,
   validateScore,
 } from "./scores";
 
@@ -40,5 +41,9 @@ assert(!validateScore({ score: 1, duration_ms: 1000, game: "duel" }).ok, "unknow
 assert(displayNameFromEmail("coleman@example.com") === "coleman", "email prefix display name");
 assert(displayNameFromEmail("a@example.com").length >= 2, "short prefix is padded");
 assert(displayNameFromEmail(`${"n".repeat(40)}@example.com`).length === 20, "name is capped at 20");
+assert(normalizeDisplayName("  Mary-Anne  ") === "Mary-Anne", "chosen name is trimmed");
+assert(normalizeDisplayName("J. Coleman") === "J. Coleman", "short parlor name is kept");
+assert(normalizeDisplayName("A") === null, "one letter is refused");
+assert(normalizeDisplayName("n".repeat(21)) === null, "twenty-one letters is refused");
 
 console.log("scores.selftest ok");

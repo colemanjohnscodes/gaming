@@ -10,6 +10,13 @@ import {
   type ReactNode,
 } from "react";
 import { ParlorPanel } from "@/components/ParlorPanel";
+import {
+  clearPendingScore,
+  loadPendingScore,
+  savePendingScore,
+} from "@/lib/pending-score";
+import { recordParlorScore, type ScoreInput } from "@/lib/scores";
+import { createClient } from "@/lib/supabase/client";
 import { GRID_SIZE } from "./constants";
 import { createGame, tick, turn } from "./engine";
 import { dirFromKey, dirFromSwipe, isPauseKey } from "./input";
@@ -22,6 +29,8 @@ type View = {
   paused: boolean;
 };
 
+type LedgerNote = "idle" | "saving" | "recorded" | "error";
+
 const MIN_CELL = 14;
 
 function fitCell(width: number, maxHeight: number): number {
@@ -33,19 +42,22 @@ function snapshot(state: GameState, paused: boolean): View {
   return { score: state.score, status: state.status, paused };
 }
 
-export function SnakeGame() {
+export function SnakeGame({ signedIn }: { signedIn: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const stateRef = useRef<GameState>(createGame());
   const pausedRef = useRef(false);
   const cellRef = useRef(MIN_CELL);
   const pointerRef = useRef<{ x: number; y: number } | null>(null);
+  const deathHandledRef = useRef(false);
   const [cell, setCell] = useState(MIN_CELL);
   const [view, setView] = useState<View>({
     score: 0,
     status: "running",
     paused: false,
   });
+  const [ledgerNote, setLedgerNote] = useState<LedgerNote>("idle");
+  const [ledgerReason, setLedgerReason] = useState("");
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -78,9 +90,26 @@ export function SnakeGame() {
   const restart = useCallback(() => {
     stateRef.current = createGame();
     pausedRef.current = false;
+    deathHandledRef.current = false;
+    setLedgerNote("idle");
+    setLedgerReason("");
     publish();
     canvasRef.current?.focus();
   }, [publish]);
+
+  const submitLedger = useCallback(async (input: ScoreInput) => {
+    setLedgerNote("saving");
+    setLedgerReason("");
+    const supabase = createClient();
+    const result = await recordParlorScore(supabase, input);
+    if (result.ok) {
+      clearPendingScore();
+      setLedgerNote("recorded");
+      return;
+    }
+    setLedgerNote("error");
+    setLedgerReason(result.reason);
+  }, []);
 
   const togglePause = useCallback(() => {
     if (stateRef.current.status === "dead") {
@@ -134,6 +163,46 @@ export function SnakeGame() {
     }
     draw();
   }, [cell, draw]);
+
+  useEffect(() => {
+    const pending = loadPendingScore();
+    if (!pending) {
+      return;
+    }
+    const supabase = createClient();
+    void supabase.auth.getUser().then(({ data }) => {
+      if (!data.user) {
+        return;
+      }
+      void submitLedger(pending);
+    });
+  }, [submitLedger]);
+
+  useEffect(() => {
+    if (view.status !== "dead") {
+      deathHandledRef.current = false;
+      return;
+    }
+    if (deathHandledRef.current) {
+      return;
+    }
+    deathHandledRef.current = true;
+    const state = stateRef.current;
+    const durationMs = Math.max(
+      0,
+      Math.round((state.endedAt ?? Date.now()) - state.startedAt),
+    );
+    const pending: ScoreInput = {
+      game: "snake",
+      score: state.score,
+      duration_ms: durationMs,
+      grid_size: state.gridSize,
+    };
+    savePendingScore(pending);
+    if (signedIn) {
+      void submitLedger(pending);
+    }
+  }, [view.status, signedIn, submitLedger]);
 
   useEffect(() => {
     canvasRef.current?.focus();
@@ -226,6 +295,9 @@ export function SnakeGame() {
           {view.score}
         </p>
       </div>
+      {ledgerNote === "recorded" && view.status !== "dead" ? (
+        <p className="text-sm tracking-[0.14em] text-gold">Recorded.</p>
+      ) : null}
 
       <div ref={wrapRef} className="relative w-full max-w-xl">
         <div
@@ -269,12 +341,17 @@ export function SnakeGame() {
                   >
                     Another hand
                   </button>
-                  <Link
-                    href="/login?next=/play/snake"
-                    className="text-sm tracking-[0.14em] text-ink-muted hover:text-gold focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-4 focus-visible:outline-gold"
-                  >
-                    Enter the ledger
-                  </Link>
+                  <LedgerAction
+                    signedIn={signedIn}
+                    note={ledgerNote}
+                    reason={ledgerReason}
+                    onSave={() => {
+                      const pending = loadPendingScore();
+                      if (pending) {
+                        void submitLedger(pending);
+                      }
+                    }}
+                  />
                 </div>
               </ParlorPanel>
             </div>
@@ -288,6 +365,55 @@ export function SnakeGame() {
         Arrows or WASD. Space holds the table.
       </p>
     </div>
+  );
+}
+
+function LedgerAction({
+  signedIn,
+  note,
+  reason,
+  onSave,
+}: {
+  signedIn: boolean;
+  note: LedgerNote;
+  reason: string;
+  onSave: () => void;
+}) {
+  if (note === "recorded") {
+    return (
+      <p className="text-sm tracking-[0.14em] text-gold">Recorded.</p>
+    );
+  }
+  if (note === "saving") {
+    return (
+      <p className="text-sm tracking-[0.14em] text-ink-muted">
+        The book is open…
+      </p>
+    );
+  }
+  if (signedIn) {
+    return (
+      <div className="space-y-2">
+        <button
+          type="button"
+          onClick={onSave}
+          className="text-sm tracking-[0.14em] text-ink-muted hover:text-gold focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-4 focus-visible:outline-gold"
+        >
+          Enter the ledger
+        </button>
+        {note === "error" ? (
+          <p className="text-xs text-oxblood">{reason}</p>
+        ) : null}
+      </div>
+    );
+  }
+  return (
+    <Link
+      href="/login?next=/play/snake"
+      className="text-sm tracking-[0.14em] text-ink-muted hover:text-gold focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-4 focus-visible:outline-gold"
+    >
+      Enter the ledger
+    </Link>
   );
 }
 

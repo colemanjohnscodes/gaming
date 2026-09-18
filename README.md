@@ -42,9 +42,19 @@ That script only creates:
 - `public.parlor_profiles`
 - `public.parlor_scores`
 
-It does not drop, alter, or rename anything already in the project. It does not add a trigger on `auth.users`. Leave Auth settings unchanged until Phase 3.
+It does not drop, alter, or rename anything already in the project. It does not add a trigger on `auth.users`. Profiles are created in app code on first save.
 
-Guests may play The Serpent with no account. Saving a name to The Ledger is not wired yet.
+Guests may play The Serpent with no account. To appear on The Ledger, leave a name with the magic-link letter.
+
+## Auth (human)
+
+In the existing Admin project Auth settings (do this in the dashboard, not from this repo):
+
+- Site URL: `http://localhost:3000`
+- Redirect URL: `http://localhost:3000/auth/callback`
+- Email magic link enabled
+
+Do not point Auth at listing/CRM apps for this sitting. Preview and `https://parlor.colemanjohns.com` can be added later.
 
 ## Domain
 

@@ -1,7 +1,15 @@
 import Link from "next/link";
 import { ParlorPanel } from "@/components/ParlorPanel";
+import { listParlorScores } from "@/lib/scores";
+import { createClient } from "@/lib/supabase/server";
 
-export default function Home() {
+export const dynamic = "force-dynamic";
+
+export default async function Home() {
+  const supabase = await createClient();
+  const ledger = await listParlorScores(supabase, { limit: 5 });
+  const names = ledger.ok ? ledger.entries : [];
+
   return (
     <div className="flex flex-col items-center">
       <p className="font-serif text-5xl tracking-wide text-cream sm:text-6xl">
@@ -35,12 +43,27 @@ export default function Home() {
         </ParlorPanel>
       </div>
 
-      <Link
-        href="/leaderboard"
-        className="mt-12 text-sm tracking-[0.16em] text-cream transition-colors hover:text-gold focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-4 focus-visible:outline-gold"
-      >
-        The Ledger
-      </Link>
+      <div className="mt-12 w-full max-w-md text-center">
+        <Link
+          href="/leaderboard"
+          className="text-sm tracking-[0.16em] text-cream transition-colors hover:text-gold focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-4 focus-visible:outline-gold"
+        >
+          The Ledger
+        </Link>
+        {names.length > 0 ? (
+          <ol className="mt-6 space-y-2 text-sm text-ink-muted">
+            {names.map((entry) => (
+              <li
+                key={entry.id}
+                className="flex justify-between gap-4 tracking-[0.08em]"
+              >
+                <span className="truncate text-cream">{entry.display_name}</span>
+                <span className="text-gold tabular-nums">{entry.score}</span>
+              </li>
+            ))}
+          </ol>
+        ) : null}
+      </div>
     </div>
   );
 }

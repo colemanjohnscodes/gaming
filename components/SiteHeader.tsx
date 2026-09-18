@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { AuthButton } from "@/components/AuthButton";
 
@@ -27,7 +28,13 @@ export function SiteHeader() {
           >
             The Ledger
           </Link>
-          <AuthButton />
+          <Suspense
+            fallback={
+              <span className="text-cream">Leave a name</span>
+            }
+          >
+            <AuthButton />
+          </Suspense>
         </nav>
       </div>
     </header>

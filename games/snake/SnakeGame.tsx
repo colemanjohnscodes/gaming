@@ -100,15 +100,20 @@ export function SnakeGame({ signedIn }: { signedIn: boolean }) {
   const submitLedger = useCallback(async (input: ScoreInput) => {
     setLedgerNote("saving");
     setLedgerReason("");
-    const supabase = createClient();
-    const result = await recordParlorScore(supabase, input);
-    if (result.ok) {
-      clearPendingScore();
-      setLedgerNote("recorded");
-      return;
+    try {
+      const supabase = createClient();
+      const result = await recordParlorScore(supabase, input);
+      if (result.ok) {
+        clearPendingScore();
+        setLedgerNote("recorded");
+        return;
+      }
+      setLedgerNote("error");
+      setLedgerReason(result.reason);
+    } catch {
+      setLedgerNote("error");
+      setLedgerReason("The ledger would not take the line.");
     }
-    setLedgerNote("error");
-    setLedgerReason(result.reason);
   }, []);
 
   const togglePause = useCallback(() => {

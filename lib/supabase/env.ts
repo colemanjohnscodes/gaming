@@ -1,11 +1,15 @@
-type PublicSupabaseEnv =
-  | "NEXT_PUBLIC_SUPABASE_URL"
-  | "NEXT_PUBLIC_SUPABASE_ANON_KEY";
-
-export function requirePublicSupabaseEnv(name: PublicSupabaseEnv): string {
-  const value = process.env[name];
+export function publicSupabaseUrl(): string {
+  const value = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (!value) {
-    throw new Error(`Missing ${name}`);
+    throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL");
+  }
+  return value;
+}
+
+export function publicSupabaseAnonKey(): string {
+  const value = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!value) {
+    throw new Error("Missing NEXT_PUBLIC_SUPABASE_ANON_KEY");
   }
   return value;
 }

@@ -51,27 +51,32 @@ export function LoginForm({ nextPath, email, errorCode }: LoginFormProps) {
 
     setStatus("sending");
     setMessage("");
-    const supabase = createClient();
-    const origin = window.location.origin;
-    const redirectTo = new URL("/auth/callback", origin);
-    redirectTo.searchParams.set("next", nextPath);
+    try {
+      const supabase = createClient();
+      const origin = window.location.origin;
+      const redirectTo = new URL("/auth/callback", origin);
+      redirectTo.searchParams.set("next", nextPath);
 
-    const { error } = await supabase.auth.signInWithOtp({
-      email: address,
-      options: {
-        emailRedirectTo: redirectTo.toString(),
-        shouldCreateUser: true,
-      },
-    });
+      const { error } = await supabase.auth.signInWithOtp({
+        email: address,
+        options: {
+          emailRedirectTo: redirectTo.toString(),
+          shouldCreateUser: true,
+        },
+      });
 
-    if (error) {
+      if (error) {
+        setStatus("error");
+        setMessage("The house could not send a letter.");
+        return;
+      }
+
+      setStatus("sent");
+      setMessage("A letter is on its way.");
+    } catch {
       setStatus("error");
       setMessage("The house could not send a letter.");
-      return;
     }
-
-    setStatus("sent");
-    setMessage("A letter is on its way.");
   }
 
   return (

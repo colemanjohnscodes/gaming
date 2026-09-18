@@ -3,7 +3,10 @@ import {
   GRID_20_SCORE_SOFT_CAP,
   MIN_MS_PER_POINT,
   displayNameFromEmail,
+  ledgerRank,
+  needsParlorNamePrompt,
   normalizeDisplayName,
+  suggestedParlorName,
   validateScore,
 } from "./scores";
 
@@ -45,5 +48,10 @@ assert(normalizeDisplayName("  Mary-Anne  ") === "Mary-Anne", "chosen name is tr
 assert(normalizeDisplayName("J. Coleman") === "J. Coleman", "short parlor name is kept");
 assert(normalizeDisplayName("A") === null, "one letter is refused");
 assert(normalizeDisplayName("n".repeat(21)) === null, "twenty-one letters is refused");
+assert(suggestedParlorName("Brandon Johns") === "Brandon", "first name only");
+assert(needsParlorNamePrompt("Brandon Johns"), "legal name needs a parlor name");
+assert(needsParlorNamePrompt("brandon", "brandon@example.com"), "email prefix needs a parlor name");
+assert(!needsParlorNamePrompt("Brandon", "brandon@example.com"), "chosen first name is kept");
+assert(ledgerRank(0) === "I" && ledgerRank(3) === "4", "roman then arabic");
 
 console.log("scores.selftest ok");

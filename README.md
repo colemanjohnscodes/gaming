@@ -44,7 +44,7 @@ That script only creates:
 
 It does not drop, alter, or rename anything already in the project. It does not add a trigger on `auth.users`. Profiles are created in app code on first save.
 
-Guests may play The Serpent with no account. To appear on The Ledger, leave a name with the magic-link letter.
+Guests may play The Hedge with no account. To appear on The Ledger, leave a name with the magic-link letter.
 
 ## Auth (human)
 
@@ -77,7 +77,7 @@ Preview is enough for first launch. The custom domain can wait.
 2. In Vercel, create a **new project from this repo**. Root directory is the repo root. Framework: Next.js.
 3. Set the same public env vars as `.env.example` (Supabase URL and anon key from the existing Admin project). Do not put a service-role key in the browser.
 4. In the Admin project Auth settings, add the Vercel URL and its `/auth/callback` redirect.
-5. Play The Serpent, leave a name, confirm a row in `public.parlor_scores`.
+5. Play The Hedge, leave a name, confirm a row in `public.parlor_scores`.
 
 When you want `parlor.colemanjohns.com` (not required for preview):
 

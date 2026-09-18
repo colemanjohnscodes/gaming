@@ -10,13 +10,20 @@ import {
   type ReactNode,
 } from "react";
 import { ParlorPanel } from "@/components/ParlorPanel";
-import { loadPendingName } from "@/lib/pending-name";
+import { loadPendingName, savePendingName } from "@/lib/pending-name";
 import {
   clearPendingScore,
   loadPendingScore,
   savePendingScore,
 } from "@/lib/pending-score";
-import { recordParlorScore, type ScoreInput } from "@/lib/scores";
+import {
+  DISPLAY_NAME_MAX,
+  DISPLAY_NAME_MIN,
+  needsParlorNamePrompt,
+  recordParlorScore,
+  suggestedParlorName,
+  type ScoreInput,
+} from "@/lib/scores";
 import { createClient } from "@/lib/supabase/client";
 import { GRID_SIZE } from "./constants";
 import { createGame, tick, turn } from "./engine";
@@ -43,7 +50,15 @@ function snapshot(state: GameState, paused: boolean): View {
   return { score: state.score, status: state.status, paused };
 }
 
-export function SnakeGame({ signedIn }: { signedIn: boolean }) {
+export function SnakeGame({
+  signedIn,
+  parlorName,
+  email,
+}: {
+  signedIn: boolean;
+  parlorName?: string | null;
+  email?: string | null;
+}) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
   const dpadRef = useRef<HTMLDivElement>(null);
@@ -61,6 +76,9 @@ export function SnakeGame({ signedIn }: { signedIn: boolean }) {
   });
   const [ledgerNote, setLedgerNote] = useState<LedgerNote>("idle");
   const [ledgerReason, setLedgerReason] = useState("");
+  const [hasParlorName, setHasParlorName] = useState(
+    () => Boolean(loadPendingName()),
+  );
 
   const draw = useCallback(() => {
     const canvas = canvasRef.current;
@@ -219,10 +237,17 @@ export function SnakeGame({ signedIn }: { signedIn: boolean }) {
       grid_size: state.gridSize,
     };
     savePendingScore(pending);
-    if (signedIn) {
-      void submitLedger(pending);
+    if (!signedIn) {
+      return;
     }
-  }, [view.status, signedIn, submitLedger]);
+    if (
+      !hasParlorName &&
+      needsParlorNamePrompt(parlorName ?? "", email)
+    ) {
+      return;
+    }
+    void submitLedger(pending);
+  }, [view.status, signedIn, submitLedger, parlorName, email, hasParlorName]);
 
   useEffect(() => {
     canvasRef.current?.focus();
@@ -306,11 +331,17 @@ export function SnakeGame({ signedIn }: { signedIn: boolean }) {
   const boardPx = cell * GRID_SIZE;
   const showDeath = view.status === "dead";
   const showPause = view.paused && !showDeath;
+  const askingName =
+    showDeath &&
+    signedIn &&
+    ledgerNote === "idle" &&
+    !hasParlorName &&
+    needsParlorNamePrompt(parlorName ?? "", email);
 
   return (
     <div className="flex w-full flex-col items-center gap-3 sm:gap-5">
       <div className="flex w-full items-baseline justify-between gap-4">
-        <h1 className="font-serif text-2xl text-cream sm:text-3xl">The Serpent</h1>
+        <h1 className="font-serif text-2xl text-cream sm:text-3xl">The Hedge</h1>
         <p className="text-sm tracking-[0.16em] text-gold" aria-live="polite">
           {view.score}
         </p>
@@ -328,7 +359,7 @@ export function SnakeGame({ signedIn }: { signedIn: boolean }) {
             ref={canvasRef}
             tabIndex={0}
             role="application"
-            aria-label="The Serpent"
+            aria-label="The Hedge"
             className="block touch-none outline-none focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-0 focus-visible:outline-gold"
             onPointerDown={onPointerDown}
             onPointerUp={onPointerUp}
@@ -359,19 +390,35 @@ export function SnakeGame({ signedIn }: { signedIn: boolean }) {
                     onClick={restart}
                     className="border border-gold/80 px-4 py-2 text-sm tracking-[0.14em] text-cream hover:border-gold hover:text-gold focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-4 focus-visible:outline-gold"
                   >
-                    Another hand
+                    Again
                   </button>
-                  <LedgerAction
-                    signedIn={signedIn}
-                    note={ledgerNote}
-                    reason={ledgerReason}
-                    onSave={() => {
-                      const pending = loadPendingScore();
-                      if (pending) {
-                        void submitLedger(pending);
-                      }
-                    }}
-                  />
+                  {askingName ? (
+                    <NamePrompt
+                      suggestion={suggestedParlorName(
+                        parlorName || email?.split("@")[0] || "guest",
+                      )}
+                      onSubmitName={(name) => {
+                        savePendingName(name);
+                        setHasParlorName(true);
+                        const pending = loadPendingScore();
+                        if (pending) {
+                          void submitLedger(pending);
+                        }
+                      }}
+                    />
+                  ) : (
+                    <LedgerAction
+                      signedIn={signedIn}
+                      note={ledgerNote}
+                      reason={ledgerReason}
+                      onSave={() => {
+                        const pending = loadPendingScore();
+                        if (pending) {
+                          void submitLedger(pending);
+                        }
+                      }}
+                    />
+                  )}
                 </div>
               </ParlorPanel>
             </div>
@@ -390,6 +437,49 @@ export function SnakeGame({ signedIn }: { signedIn: boolean }) {
         Arrows or WASD. Space holds the table.
       </p>
     </div>
+  );
+}
+
+function NamePrompt({
+  suggestion,
+  onSubmitName,
+}: {
+  suggestion: string;
+  onSubmitName: (name: string) => void;
+}) {
+  return (
+    <form
+      className="space-y-3 text-left"
+      action={(formData) => {
+        const name = String(formData.get("display_name") ?? "");
+        const stored = savePendingName(name);
+        if (stored) {
+          onSubmitName(stored);
+        }
+      }}
+    >
+      <label className="block">
+        <span className="text-xs tracking-[0.16em] text-ink-muted">
+          What shall we call you?
+        </span>
+        <input
+          type="text"
+          name="display_name"
+          required
+          minLength={DISPLAY_NAME_MIN}
+          maxLength={DISPLAY_NAME_MAX}
+          defaultValue={suggestion}
+          autoComplete="nickname"
+          className="mt-2 w-full border border-gold/80 bg-background px-3 py-2 text-center text-cream outline-none focus:border-gold"
+        />
+      </label>
+      <button
+        type="submit"
+        className="w-full text-sm tracking-[0.14em] text-gold hover:text-cream focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-4 focus-visible:outline-gold"
+      >
+        Enter the ledger
+      </button>
+    </form>
   );
 }
 

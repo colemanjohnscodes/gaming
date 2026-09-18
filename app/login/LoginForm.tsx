@@ -3,7 +3,12 @@
 import { useState } from "react";
 import { amendName, withdrawName } from "@/app/login/actions";
 import { savePendingName } from "@/lib/pending-name";
-import { DISPLAY_NAME_MAX, DISPLAY_NAME_MIN } from "@/lib/scores";
+import {
+  DISPLAY_NAME_MAX,
+  DISPLAY_NAME_MIN,
+  needsParlorNamePrompt,
+  suggestedParlorName,
+} from "@/lib/scores";
 import { createClient } from "@/lib/supabase/client";
 
 const fieldClass =
@@ -53,7 +58,11 @@ export function LoginForm({
               required
               minLength={DISPLAY_NAME_MIN}
               maxLength={DISPLAY_NAME_MAX}
-              defaultValue={displayName ?? ""}
+              defaultValue={
+                displayName && needsParlorNamePrompt(displayName, email)
+                  ? suggestedParlorName(displayName)
+                  : (displayName ?? "")
+              }
               autoComplete="nickname"
               className={fieldClass}
             />

@@ -32,6 +32,13 @@ export type LedgerEntry = {
   display_name: string;
 };
 
+export type LedgerBest = {
+  user_id: string;
+  display_name: string;
+  score: number;
+  sittings: number;
+};
+
 const EMAIL_NAME_CHARS = /[^A-Za-z0-9 ._-]/g;
 
 function isParlorGame(game: string): game is ParlorGame {
@@ -64,6 +71,41 @@ export function normalizeDisplayName(raw: string): string | null {
     return null;
   }
   return name;
+}
+
+export function suggestedParlorName(displayName: string): string {
+  const first = displayName.trim().split(/\s+/)[0] ?? displayName;
+  return normalizeDisplayName(first) ?? first.slice(0, DISPLAY_NAME_MAX);
+}
+
+export function needsParlorNamePrompt(
+  displayName: string,
+  email?: string | null,
+): boolean {
+  const trimmed = displayName.trim();
+  if (!trimmed) {
+    return true;
+  }
+  if (/\s/.test(trimmed)) {
+    return true;
+  }
+  if (email && displayNameFromEmail(email) === trimmed) {
+    return true;
+  }
+  return false;
+}
+
+export function ledgerRank(index: number): string {
+  if (index === 0) {
+    return "I";
+  }
+  if (index === 1) {
+    return "II";
+  }
+  if (index === 2) {
+    return "III";
+  }
+  return String(index + 1);
 }
 
 export function validateScore(input: ScoreInput): ScoreCheck {
@@ -233,4 +275,55 @@ export async function listParlorScores(
   }));
 
   return { ok: true, entries };
+}
+
+export async function listParlorBest(
+  supabase: ParlorClient,
+  options: { game?: string; limit?: number; since?: string } = {},
+): Promise<{ ok: true; entries: LedgerBest[] } | { ok: false; reason: string }> {
+  const game = options.game ?? "snake";
+  const limit = options.limit ?? 25;
+
+  let query = supabase
+    .from("parlor_scores")
+    .select("user_id, score, parlor_profiles!inner(display_name)")
+    .eq("game", game);
+
+  if (options.since) {
+    query = query.gte("created_at", options.since);
+  }
+
+  const { data, error } = await query.limit(2000);
+  if (error || !data) {
+    return { ok: false, reason: "The ledger could not be read." };
+  }
+
+  const byUser = new Map<string, LedgerBest>();
+  for (const row of data) {
+    const displayName = profileName(row.parlor_profiles);
+    const current = byUser.get(row.user_id);
+    if (!current) {
+      byUser.set(row.user_id, {
+        user_id: row.user_id,
+        display_name: displayName,
+        score: row.score,
+        sittings: 1,
+      });
+      continue;
+    }
+    current.sittings += 1;
+    if (row.score > current.score) {
+      current.score = row.score;
+      current.display_name = displayName;
+    }
+  }
+
+  const entries = Array.from(byUser.values()).sort((a, b) => {
+    if (b.score !== a.score) {
+      return b.score - a.score;
+    }
+    return a.display_name.localeCompare(b.display_name);
+  });
+
+  return { ok: true, entries: entries.slice(0, limit) };
 }

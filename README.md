@@ -46,6 +46,8 @@ It does not drop, alter, or rename anything already in the project. It does not 
 
 Guests may play The Hedge with no account. To appear on The Ledger, leave a name with the magic-link letter.
 
+A Private Wager is local two-chair play at `/play/duel`. It is not written to The Ledger.
+
 ## Auth (human)
 
 In the existing Admin project Auth settings (do this in the dashboard, not from this repo):

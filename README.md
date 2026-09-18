@@ -50,14 +50,27 @@ Guests may play The Serpent with no account. To appear on The Ledger, leave a na
 
 In the existing Admin project Auth settings (do this in the dashboard, not from this repo):
 
-- Site URL: `http://localhost:3000`
+- Site URL: `http://localhost:3000` for local work
 - Redirect URL: `http://localhost:3000/auth/callback`
 - Email magic link enabled
 
-Do not point Auth at listing/CRM apps for this sitting. Preview and `https://parlor.colemanjohns.com` can be added later.
+After a Vercel preview exists, add that URL and `/auth/callback` as well. When the parlor host is attached, add `https://parlor.colemanjohns.com` and `https://parlor.colemanjohns.com/auth/callback`.
 
-## Domain
+Do not point Auth at listing/CRM apps for this sitting.
 
-First deploy is Vercel from this repo. Attach `parlor.colemanjohns.com` after that preview is live.
+## Deploy (Vercel)
+
+Preview is enough for first launch. The custom domain can wait.
+
+1. Push `main` to `https://github.com/colemanjohnscodes/gaming.git`.
+2. In Vercel, create a **new project from this repo**. Root directory is the repo root. Framework: Next.js.
+3. Set the same public env vars as `.env.example` (Supabase URL and anon key from the existing Admin project). Do not put a service-role key in the browser.
+4. In the Admin project Auth settings, add the Vercel URL and its `/auth/callback` redirect.
+5. Play The Serpent, leave a name, confirm a row in `public.parlor_scores`.
+
+When you want `parlor.colemanjohns.com` (not required for preview):
+
+6. In Vercel, add the domain `parlor.colemanjohns.com`.
+7. In DNS, CNAME `parlor` to Vercel. Do not change DNS from this repo.
 
 See `PLAN.md` and `AGENTS.md`.

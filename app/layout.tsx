@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Playfair_Display, Source_Sans_3 } from "next/font/google";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
@@ -21,7 +21,17 @@ export const metadata: Metadata = {
     default: "The Parlor · Coleman Johns",
     template: "%s · The Parlor",
   },
-  description: "A Coleman Johns parlor game.",
+  description: "The Parlor · Coleman Johns",
+  openGraph: {
+    title: "The Parlor · Coleman Johns",
+    description: "The Parlor · Coleman Johns",
+  },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#1a1210",
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
@@ -32,7 +42,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
     >
       <body className="flex min-h-dvh flex-col font-sans antialiased">
         <SiteHeader />
-        <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-12 sm:py-16">
+        <main className="mx-auto w-full max-w-5xl flex-1 px-4 py-6 sm:px-6 sm:py-12 lg:py-16">
           {children}
         </main>
         <SiteFooter />

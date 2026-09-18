@@ -31,7 +31,7 @@ type View = {
 
 type LedgerNote = "idle" | "saving" | "recorded" | "error";
 
-const MIN_CELL = 14;
+const MIN_CELL = 8;
 
 function fitCell(width: number, maxHeight: number): number {
   const bound = Math.min(width, maxHeight);
@@ -45,6 +45,8 @@ function snapshot(state: GameState, paused: boolean): View {
 export function SnakeGame({ signedIn }: { signedIn: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const wrapRef = useRef<HTMLDivElement>(null);
+  const dpadRef = useRef<HTMLDivElement>(null);
+  const hintRef = useRef<HTMLParagraphElement>(null);
   const stateRef = useRef<GameState>(createGame());
   const pausedRef = useRef(false);
   const cellRef = useRef(MIN_CELL);
@@ -132,13 +134,23 @@ export function SnakeGame({ signedIn }: { signedIn: boolean }) {
 
     const measure = () => {
       const width = wrap.clientWidth;
-      const maxHeight = Math.max(
-        MIN_CELL * GRID_SIZE,
-        Math.floor(window.innerHeight * 0.52),
-      );
-      const nextCell = fitCell(width, maxHeight);
-      cellRef.current = nextCell;
-      setCell(nextCell);
+      const dpadHeight = dpadRef.current?.offsetHeight ?? 0;
+      const hintHeight = hintRef.current?.offsetHeight ?? 0;
+      const footerHeight =
+        document.querySelector("footer")?.getBoundingClientRect().height ?? 56;
+      const boardTop = wrap.getBoundingClientRect().top;
+      const room =
+        window.innerHeight -
+        boardTop -
+        dpadHeight -
+        hintHeight -
+        footerHeight -
+        16;
+      const nextCell = fitCell(width, room);
+      if (nextCell !== cellRef.current) {
+        cellRef.current = nextCell;
+        setCell(nextCell);
+      }
     };
 
     measure();
@@ -293,9 +305,9 @@ export function SnakeGame({ signedIn }: { signedIn: boolean }) {
   const showPause = view.paused && !showDeath;
 
   return (
-    <div className="flex w-full flex-col items-center gap-5">
+    <div className="flex w-full flex-col items-center gap-3 sm:gap-5">
       <div className="flex w-full items-baseline justify-between gap-4">
-        <h1 className="font-serif text-3xl text-cream">The Serpent</h1>
+        <h1 className="font-serif text-2xl text-cream sm:text-3xl">The Serpent</h1>
         <p className="text-sm tracking-[0.16em] text-gold" aria-live="polite">
           {view.score}
         </p>
@@ -329,7 +341,7 @@ export function SnakeGame({ signedIn }: { signedIn: boolean }) {
           ) : null}
 
           {showDeath ? (
-            <div className="absolute inset-0 flex items-center justify-center bg-background/70 p-4">
+            <div className="absolute inset-0 flex items-center justify-center overflow-auto bg-background/70 p-3">
               <ParlorPanel className="w-full max-w-xs text-center">
                 <p className="font-serif text-2xl text-cream">The house holds.</p>
                 <p className="mt-3 text-2xl tracking-[0.12em] text-gold">
@@ -364,9 +376,14 @@ export function SnakeGame({ signedIn }: { signedIn: boolean }) {
         </div>
       </div>
 
-      <DPad onTurn={applyTurn} />
+      <div ref={dpadRef} className="shrink-0 pb-[env(safe-area-inset-bottom)]">
+        <DPad onTurn={applyTurn} />
+      </div>
 
-      <p className="text-center text-xs tracking-[0.14em] text-ink-muted">
+      <p
+        ref={hintRef}
+        className="shrink-0 text-center text-xs tracking-[0.14em] text-ink-muted"
+      >
         Arrows or WASD. Space holds the table.
       </p>
     </div>
@@ -462,7 +479,7 @@ function PadButton({
     <button
       type="button"
       aria-label={label}
-      className="flex h-12 w-12 items-center justify-center border border-gold/50 text-cream hover:border-gold hover:text-gold focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-gold"
+      className="flex h-11 w-11 touch-manipulation items-center justify-center border border-gold/50 text-cream hover:border-gold hover:text-gold focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-gold sm:h-12 sm:w-12"
       onPointerDown={(event) => {
         event.preventDefault();
         onPress();

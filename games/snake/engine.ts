@@ -22,7 +22,7 @@ const STEP: Record<Dir, Point> = {
   right: { x: 1, y: 0 },
 };
 
-function samePoint(a: Point, b: Point): boolean {
+export function samePoint(a: Point, b: Point): boolean {
   return a.x === b.x && a.y === b.y;
 }
 
@@ -30,17 +30,30 @@ function pointKey(p: Point): string {
   return `${p.x},${p.y}`;
 }
 
-function tickMsForScore(score: number): number {
+export function nextHead(head: Point, dir: Dir): Point {
+  return { x: head.x + STEP[dir].x, y: head.y + STEP[dir].y };
+}
+
+export function isOutOfBounds(point: Point, gridSize: number): boolean {
+  return (
+    point.x < 0 ||
+    point.y < 0 ||
+    point.x >= gridSize ||
+    point.y >= gridSize
+  );
+}
+
+export function speedForScore(score: number): number {
   const steps = Math.floor(score / FOOD_PER_SPEED);
   return Math.max(MIN_TICK_MS, BASE_TICK_MS - steps * TICK_STEP_MS);
 }
 
-function placeFood(
+export function randomEmptyCell(
   gridSize: number,
-  snake: Point[],
+  occupied: Point[],
   rng: () => number,
 ): Point {
-  const blocked = new Set(snake.map(pointKey));
+  const blocked = new Set(occupied.map(pointKey));
   const empty: Point[] = [];
   for (let y = 0; y < gridSize; y += 1) {
     for (let x = 0; x < gridSize; x += 1) {
@@ -50,10 +63,22 @@ function placeFood(
     }
   }
   if (empty.length === 0) {
-    return snake[0];
+    return occupied[0] ?? { x: 0, y: 0 };
   }
   const index = Math.min(empty.length - 1, Math.floor(rng() * empty.length));
   return empty[index];
+}
+
+function tickMsForScore(score: number): number {
+  return speedForScore(score);
+}
+
+function placeFood(
+  gridSize: number,
+  snake: Point[],
+  rng: () => number,
+): Point {
+  return randomEmptyCell(gridSize, snake, rng);
 }
 
 export function createGame(config: GameConfig = {}): GameState {

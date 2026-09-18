@@ -22,6 +22,9 @@ export function SiteHeader() {
           <Link href="/play/snake" className={navClass}>
             The Hedge
           </Link>
+          <Link href="/play/duel" className={navClass}>
+            A Private Wager
+          </Link>
           <Link href="/leaderboard" className={navClass}>
             The Ledger
           </Link>

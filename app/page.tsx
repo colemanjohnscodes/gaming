@@ -52,19 +52,20 @@ export default async function Home({
           </ParlorPanel>
         </Link>
 
-        <ParlorPanel
-          variant="ghost"
-          aria-disabled="true"
-          className="cursor-default border-dashed border-gold/40 opacity-60"
+        <Link
+          href="/play/duel"
+          className="block focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-4 focus-visible:outline-gold"
         >
-          <p className="font-serif text-3xl text-cream">A Private Wager</p>
-          <p className="mt-4 text-sm leading-relaxed text-ink-muted">
-            Two chairs. Last alive.
-          </p>
-          <p className="mt-8 text-xs tracking-[0.16em] text-gold">
-            The table is reserved
-          </p>
-        </ParlorPanel>
+          <ParlorPanel className="min-h-44 border-gold/80 transition-colors duration-[120ms] hover:border-gold">
+            <p className="font-serif text-3xl text-cream">A Private Wager</p>
+            <p className="mt-4 text-sm leading-relaxed text-ink-muted">
+              Two chairs. Last alive.
+            </p>
+            <p className="mt-10 text-xs tracking-[0.16em] text-gold">
+              Take the other chair.
+            </p>
+          </ParlorPanel>
+        </Link>
       </div>
 
       <div className="mt-12 w-full">

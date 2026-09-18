@@ -1,26 +1,41 @@
 import type { Dir } from "./types";
 
-export function dirFromKey(key: string): Dir | null {
+export function dirFromWasd(key: string): Dir | null {
   switch (key) {
-    case "ArrowUp":
     case "w":
     case "W":
       return "up";
-    case "ArrowDown":
     case "s":
     case "S":
       return "down";
-    case "ArrowLeft":
     case "a":
     case "A":
       return "left";
-    case "ArrowRight":
     case "d":
     case "D":
       return "right";
     default:
       return null;
   }
+}
+
+export function dirFromArrows(key: string): Dir | null {
+  switch (key) {
+    case "ArrowUp":
+      return "up";
+    case "ArrowDown":
+      return "down";
+    case "ArrowLeft":
+      return "left";
+    case "ArrowRight":
+      return "right";
+    default:
+      return null;
+  }
+}
+
+export function dirFromKey(key: string): Dir | null {
+  return dirFromWasd(key) ?? dirFromArrows(key);
 }
 
 export function isPauseKey(key: string): boolean {

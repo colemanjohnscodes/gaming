@@ -66,6 +66,32 @@ export default async function Home({
             </p>
           </ParlorPanel>
         </Link>
+
+        <Link
+          href="/play/volley"
+          className="block focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-4 focus-visible:outline-gold"
+        >
+          <ParlorPanel className="min-h-44 border-gold/80 transition-colors duration-[120ms] hover:border-gold">
+            <p className="font-serif text-3xl text-cream">The Volley</p>
+            <p className="mt-4 text-sm leading-relaxed text-ink-muted">
+              A gold ball. Two paddles. First to 7.
+            </p>
+            <p className="mt-10 text-xs tracking-[0.16em] text-gold">Take a paddle.</p>
+          </ParlorPanel>
+        </Link>
+
+        <Link
+          href="/play/chart"
+          className="block focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-4 focus-visible:outline-gold"
+        >
+          <ParlorPanel className="min-h-44 border-gold/80 transition-colors duration-[120ms] hover:border-gold">
+            <p className="font-serif text-3xl text-cream">The Chart</p>
+            <p className="mt-4 text-sm leading-relaxed text-ink-muted">
+              Two sealed charts. The book calls hit or miss.
+            </p>
+            <p className="mt-10 text-xs tracking-[0.16em] text-gold">Open a chart.</p>
+          </ParlorPanel>
+        </Link>
       </div>
 
       <div className="mt-12 w-full">

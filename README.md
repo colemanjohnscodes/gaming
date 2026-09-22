@@ -52,6 +52,10 @@ Online tables need one more script. In the same SQL editor, paste and run `supab
 
 Both players open the same site. A code on `localhost` is not visible to another computer. Use the deployed URL.
 
+The Volley at `/play/volley` uses those same table codes. One browser keeps the ball.
+
+The Chart at `/play/chart` needs one more script: paste and run `supabase/chart.sql` once. Each fleet is sealed in the book, and a call is marked hit or miss from that seal. The other chair cannot read the fleet. A chart is not written to the ledger.
+
 ## Auth (human)
 
 In the existing Admin project Auth settings (do this in the dashboard, not from this repo):

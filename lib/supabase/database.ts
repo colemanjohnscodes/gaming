@@ -113,6 +113,82 @@ export type Database = {
         };
         Returns: boolean;
       };
+      open_chart: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          code: string;
+          host_token: string;
+        }[];
+      };
+      claim_chart: {
+        Args: {
+          p_code: string;
+        };
+        Returns: {
+          guest_token: string | null;
+          reason: string;
+        }[];
+      };
+      resume_chart: {
+        Args: {
+          p_code: string;
+          p_token: string;
+        };
+        Returns: {
+          ok: boolean;
+          reason?: string;
+          seat?: string;
+          status?: string;
+          youLocked?: boolean;
+          opponentLocked?: boolean;
+          yourFleet?: unknown;
+          turn?: string | null;
+          winner?: string | null;
+          shots?: unknown;
+        };
+      };
+      lock_chart: {
+        Args: {
+          p_code: string;
+          p_token: string;
+          p_fleet: {
+            name: string;
+            x: number;
+            y: number;
+            dir: string;
+          }[];
+        };
+        Returns: {
+          ok: boolean;
+          both?: boolean;
+          reason?: string;
+          seat?: string;
+        };
+      };
+      fire_chart: {
+        Args: {
+          p_code: string;
+          p_token: string;
+          p_x: number;
+          p_y: number;
+        };
+        Returns: {
+          ok: boolean;
+          reason?: string;
+          result?: string;
+          ship?: string | null;
+          cells?: unknown;
+          winner?: string | null;
+          turn?: string | null;
+        };
+      };
+      abandon_chart: {
+        Args: {
+          p_code: string;
+          p_token: string;
+        };
+        Returns: boolean;
+      };
     };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;

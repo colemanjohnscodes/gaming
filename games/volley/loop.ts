@@ -56,12 +56,13 @@ export function useVolleyLoop(
             (control === "east" && heldKey(held.current, "s", "S")),
         );
       }
+      let changed = false;
       if (simulate && state.status === "scored") {
         wait += dt;
         if (wait >= 700) {
           state = serveVolley(state);
           wait = 0;
-          publish();
+          changed = true;
         }
       } else if (simulate) {
         wait = 0;
@@ -76,10 +77,13 @@ export function useVolleyLoop(
           state.eastScore !== beforeEast ||
           state.status !== beforeStatus
         ) {
-          publish();
+          changed = true;
         }
       }
       stateRef.current = state;
+      if (changed) {
+        publish();
+      }
       frame = window.requestAnimationFrame(loop);
     };
     frame = window.requestAnimationFrame(loop);

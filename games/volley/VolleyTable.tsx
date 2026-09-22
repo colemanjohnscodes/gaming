@@ -193,20 +193,21 @@ export function VolleyTable({
             </div>
           ) : null}
           {finished ? (
-            <div className="absolute inset-0 flex items-center justify-center bg-background/70 p-3">
+            <div className="absolute inset-0 z-10 flex items-center justify-center bg-background p-4">
               <ParlorPanel className="w-full max-w-xs text-center">
-                <p className="font-serif text-2xl text-cream">
+                <p className="text-xs tracking-[0.16em] text-ink-muted">The table is closed</p>
+                <p className="mt-4 font-serif text-3xl text-cream">
                   {view.winner === "west"
                     ? "West holds the table."
                     : "East holds the table."}
                 </p>
-                <p className="mt-3 text-sm tracking-[0.12em] text-ink-muted">
-                  <span className="text-cream">{view.west}</span>
-                  <span className="mx-2">·</span>
-                  <span className="text-gold">{view.east}</span>
+                <p className="mt-4 text-sm tracking-[0.14em] text-ink-muted">
+                  <span className="text-cream">West {view.west}</span>
+                  <span className="mx-2 text-gold">·</span>
+                  <span className="text-gold">East {view.east}</span>
                 </p>
                 <button type="button" onClick={onAgain} className={buttonClass}>
-                  Again
+                  Play again
                 </button>
               </ParlorPanel>
             </div>

@@ -46,7 +46,11 @@ It does not drop, alter, or rename anything already in the project. It does not 
 
 Guests may play The Hedge with no account. To appear on The Ledger, leave a name with the magic-link letter.
 
-A Private Wager is local two-chair play at `/play/duel`. It is not written to The Ledger.
+A Private Wager at `/play/duel` can be two chairs at one keyboard, or two houses joined by a four-letter code. It is not written to The Ledger.
+
+Online tables need one more script. In the same SQL editor, paste and run `supabase/matches.sql` once. Realtime must be enabled on the project (it is, by default). That script only creates `public.parlor_matches` and the functions that open, claim, and close a table.
+
+Both players open the same site. A code on `localhost` is not visible to another computer. Use the deployed URL.
 
 ## Auth (human)
 

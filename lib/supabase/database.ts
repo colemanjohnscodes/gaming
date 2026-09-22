@@ -70,7 +70,50 @@ export type Database = {
       parlor_scores: ParlorScoresTable;
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      open_wager: {
+        Args: Record<PropertyKey, never>;
+        Returns: {
+          code: string;
+          host_token: string;
+        }[];
+      };
+      claim_wager: {
+        Args: {
+          p_code: string;
+        };
+        Returns: {
+          guest_token: string | null;
+          reason: string;
+        }[];
+      };
+      resume_wager: {
+        Args: {
+          p_code: string;
+          p_token: string;
+        };
+        Returns: {
+          seat: string;
+          status: string;
+        }[];
+      };
+      confirm_guest: {
+        Args: {
+          p_code: string;
+          p_host_token: string;
+          p_guest_token: string;
+        };
+        Returns: boolean;
+      };
+      mark_wager: {
+        Args: {
+          p_code: string;
+          p_host_token: string;
+          p_status: string;
+        };
+        Returns: boolean;
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };

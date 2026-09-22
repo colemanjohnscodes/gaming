@@ -1,64 +1,158 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  type PointerEvent as ReactPointerEvent,
-  type ReactNode,
-} from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ParlorPanel } from "@/components/ParlorPanel";
-import { DUEL_FOOD_TO_WIN, GRID_SIZE } from "./constants";
+import { openWager } from "@/lib/wager";
+import { WAGER_ALPHABET, normalizeWagerCode, rememberSeat } from "@/lib/wager-code";
+import { DuelTable, type DuelView } from "./DuelTable";
 import { createDuel, tickDuel, turnDuel, type DuelPlayerId, type DuelState } from "./duel";
-import { dirFromArrows, dirFromSwipe, dirFromWasd, isPauseKey } from "./input";
-import { renderDuelBoard } from "./render";
+import { dirFromArrows, dirFromWasd, isPauseKey } from "./input";
+import { OnlineWager } from "./OnlineWager";
 import type { Dir } from "./types";
 
-type View = {
-  p1: number;
-  p2: number;
-  status: DuelState["status"];
-  winner: DuelState["winner"];
-  paused: boolean;
-};
+const buttonClass =
+  "border border-gold/80 px-4 py-2 text-sm tracking-[0.14em] text-cream hover:border-gold hover:text-gold focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-4 focus-visible:outline-gold disabled:cursor-not-allowed disabled:opacity-50";
 
-const MIN_CELL = 8;
+const fieldClass =
+  "mt-2 w-full border border-gold/80 bg-background px-3 py-2 text-center font-serif text-2xl tracking-[0.28em] text-cream uppercase outline-none focus:border-gold";
 
-function fitCell(width: number, maxHeight: number): number {
-  const bound = Math.min(width, maxHeight);
-  return Math.max(MIN_CELL, Math.floor(bound / GRID_SIZE));
+const quietClass =
+  "text-sm tracking-[0.14em] text-ink-muted hover:text-gold focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-4 focus-visible:outline-gold";
+
+export function DuelGame({
+  room,
+  invalidRoom,
+}: {
+  room: string | null;
+  invalidRoom: boolean;
+}) {
+  const [together, setTogether] = useState(false);
+
+  if (room) {
+    return <OnlineWager code={room} />;
+  }
+  if (together) {
+    return <LocalDuel onLeave={() => setTogether(false)} />;
+  }
+  return (
+    <WagerLobby
+      invalidRoom={invalidRoom}
+      onTogether={() => setTogether(true)}
+    />
+  );
 }
 
-export function DuelGame() {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const wrapRef = useRef<HTMLDivElement>(null);
-  const padsRef = useRef<HTMLDivElement>(null);
-  const hintRef = useRef<HTMLParagraphElement>(null);
+function WagerLobby({
+  invalidRoom,
+  onTogether,
+}: {
+  invalidRoom: boolean;
+  onTogether: () => void;
+}) {
+  const router = useRouter();
+  const [draft, setDraft] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const shownError = error || (invalidRoom ? "That code is not a table." : "");
+
+  async function openTable() {
+    setBusy(true);
+    setError("");
+    const opened = await openWager();
+    if (!opened.ok) {
+      setError(opened.message);
+      setBusy(false);
+      return;
+    }
+    rememberSeat(opened.code, opened.hostToken, "host");
+    router.push(`/play/duel?room=${opened.code}`);
+  }
+
+  return (
+    <div className="mx-auto flex w-full max-w-xl flex-col gap-5">
+      <h1 className="font-serif text-3xl text-cream">A Private Wager</h1>
+      <ParlorPanel>
+        <p className="font-serif text-2xl text-cream">Two chairs, one table</p>
+        <p className="mt-3 text-sm leading-relaxed text-ink-muted">
+          Last alive, or first to 10. One keyboard. West takes WASD. East takes the arrows.
+        </p>
+        <button type="button" onClick={onTogether} className={`${buttonClass} mt-6`}>
+          Sit together
+        </button>
+      </ParlorPanel>
+      <ParlorPanel>
+        <p className="font-serif text-2xl text-cream">Across two houses</p>
+        <p className="mt-3 text-sm leading-relaxed text-ink-muted">
+          Open a table and send the code. The other player sits at their own screen.
+          No name is required. The ledger is not involved.
+        </p>
+        <button
+          type="button"
+          onClick={() => void openTable()}
+          disabled={busy}
+          className={`${buttonClass} mt-6`}
+        >
+          {busy ? "Opening…" : "Open a table"}
+        </button>
+        <form
+          className="mt-8"
+          onSubmit={(event) => {
+            event.preventDefault();
+            const next = normalizeWagerCode(draft);
+            if (!next) {
+              setError("That code is not a table.");
+              return;
+            }
+            router.push(`/play/duel?room=${next}`);
+          }}
+        >
+          <label className="block">
+            <span className="text-xs tracking-[0.16em] text-ink-muted">Or take a seat</span>
+            <input
+              value={draft}
+              onChange={(event) => {
+                const next = event.target.value.toUpperCase();
+                let code = "";
+                for (const char of next) {
+                  if (WAGER_ALPHABET.includes(char) && code.length < 4) {
+                    code += char;
+                  }
+                }
+                setDraft(code);
+              }}
+              maxLength={4}
+              autoCapitalize="characters"
+              autoCorrect="off"
+              spellCheck={false}
+              aria-label="Table code"
+              className={fieldClass}
+            />
+          </label>
+          <button type="submit" disabled={draft.length !== 4} className={`${buttonClass} mt-4`}>
+            Sit
+          </button>
+        </form>
+        {shownError ? (
+          <p className="mt-4 text-sm text-cream" role="status">
+            {shownError}
+          </p>
+        ) : null}
+      </ParlorPanel>
+    </div>
+  );
+}
+
+function LocalDuel({ onLeave }: { onLeave: () => void }) {
   const stateRef = useRef<DuelState>(createDuel());
   const pausedRef = useRef(false);
-  const cellRef = useRef(MIN_CELL);
-  const pointerRef = useRef<{ x: number; y: number } | null>(null);
-  const [cell, setCell] = useState(MIN_CELL);
-  const [view, setView] = useState<View>({
+  const [view, setView] = useState<DuelView>({
     p1: 0,
     p2: 0,
     status: "running",
     winner: null,
     paused: false,
   });
-
-  const draw = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) {
-      return;
-    }
-    const ctx = canvas.getContext("2d");
-    if (!ctx) {
-      return;
-    }
-    renderDuelBoard(ctx, stateRef.current, cellRef.current);
-  }, []);
 
   const publish = useCallback(() => {
     const state = stateRef.current;
@@ -71,20 +165,22 @@ export function DuelGame() {
     });
   }, []);
 
-  const applyTurn = useCallback((player: DuelPlayerId, dir: Dir) => {
-    const next = turnDuel(stateRef.current, player, dir);
-    stateRef.current = next;
-    if (pausedRef.current && next.status === "running") {
-      pausedRef.current = false;
-      publish();
-    }
-  }, [publish]);
+  const applyTurn = useCallback(
+    (player: DuelPlayerId, dir: Dir) => {
+      const next = turnDuel(stateRef.current, player, dir);
+      stateRef.current = next;
+      if (pausedRef.current && next.status === "running") {
+        pausedRef.current = false;
+        publish();
+      }
+    },
+    [publish],
+  );
 
   const restart = useCallback(() => {
     stateRef.current = createDuel();
     pausedRef.current = false;
     publish();
-    canvasRef.current?.focus();
   }, [publish]);
 
   const togglePause = useCallback(() => {
@@ -96,55 +192,6 @@ export function DuelGame() {
   }, [publish]);
 
   useEffect(() => {
-    const wrap = wrapRef.current;
-    if (!wrap) {
-      return;
-    }
-    const measure = () => {
-      const width = wrap.clientWidth;
-      const padsHeight = padsRef.current?.offsetHeight ?? 0;
-      const hintHeight = hintRef.current?.offsetHeight ?? 0;
-      const footerHeight =
-        document.querySelector("footer")?.getBoundingClientRect().height ?? 56;
-      const boardTop = wrap.getBoundingClientRect().top;
-      const room =
-        window.innerHeight - boardTop - padsHeight - hintHeight - footerHeight - 16;
-      const nextCell = fitCell(width, room);
-      if (nextCell !== cellRef.current) {
-        cellRef.current = nextCell;
-        setCell(nextCell);
-      }
-    };
-    measure();
-    const observer = new ResizeObserver(measure);
-    observer.observe(wrap);
-    window.addEventListener("resize", measure);
-    return () => {
-      observer.disconnect();
-      window.removeEventListener("resize", measure);
-    };
-  }, []);
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) {
-      return;
-    }
-    const dpr = Math.max(1, Math.floor(window.devicePixelRatio || 1));
-    const px = cell * GRID_SIZE;
-    canvas.width = px * dpr;
-    canvas.height = px * dpr;
-    canvas.style.width = `${px}px`;
-    canvas.style.height = `${px}px`;
-    const ctx = canvas.getContext("2d");
-    if (ctx) {
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    }
-    draw();
-  }, [cell, draw]);
-
-  useEffect(() => {
-    canvasRef.current?.focus();
     let frame = 0;
     let last = performance.now();
     let acc = 0;
@@ -176,13 +223,12 @@ export function DuelGame() {
           }
         }
       }
-      draw();
       frame = window.requestAnimationFrame(loop);
     };
 
     frame = window.requestAnimationFrame(loop);
     return () => window.cancelAnimationFrame(frame);
-  }, [draw, publish]);
+  }, [publish]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -207,182 +253,21 @@ export function DuelGame() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [applyTurn, togglePause]);
 
-  const onPointerDown = (event: ReactPointerEvent<HTMLCanvasElement>) => {
-    pointerRef.current = { x: event.clientX, y: event.clientY };
-  };
-
-  const onPointerUp = (event: ReactPointerEvent<HTMLCanvasElement>) => {
-    const start = pointerRef.current;
-    pointerRef.current = null;
-    if (!start) {
-      return;
-    }
-    const dir = dirFromSwipe(event.clientX - start.x, event.clientY - start.y);
-    if (!dir) {
-      togglePause();
-      return;
-    }
-    const canvas = canvasRef.current;
-    const mid = canvas
-      ? canvas.getBoundingClientRect().left + canvas.clientWidth / 2
-      : window.innerWidth / 2;
-    applyTurn(start.x < mid ? "p1" : "p2", dir);
-  };
-
-  const boardPx = cell * GRID_SIZE;
-  const finished = view.status === "finished";
-  const paused = view.paused && !finished;
-
   return (
-    <div className="flex w-full flex-col items-center gap-3 sm:gap-5">
-      <div className="flex w-full items-baseline justify-between gap-4">
-        <h1 className="font-serif text-2xl text-cream sm:text-3xl">
-          A Private Wager
-        </h1>
-        <p className="text-sm tracking-[0.12em] text-ink-muted" aria-live="polite">
-          <span className="text-cream">{view.p1}</span>
-          <span className="mx-2 text-gold">·</span>
-          <span className="text-gold">{view.p2}</span>
-          <span className="ml-2 text-ink-muted">/ {DUEL_FOOD_TO_WIN}</span>
-        </p>
-      </div>
-
-      <div ref={wrapRef} className="relative w-full max-w-xl">
-        <div
-          className="relative mx-auto border border-gold/80 bg-panel"
-          style={{ width: boardPx, height: boardPx }}
-        >
-          <canvas
-            ref={canvasRef}
-            tabIndex={0}
-            role="application"
-            aria-label="A Private Wager"
-            className="block touch-none outline-none focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-0 focus-visible:outline-gold"
-            onPointerDown={onPointerDown}
-            onPointerUp={onPointerUp}
-            onPointerCancel={() => {
-              pointerRef.current = null;
-            }}
-          />
-          {paused ? (
-            <div className="absolute inset-0 flex items-center justify-center bg-background/55">
-              <p className="font-serif text-2xl text-cream">Held.</p>
-            </div>
-          ) : null}
-          {finished ? (
-            <div className="absolute inset-0 flex items-center justify-center overflow-auto bg-background/70 p-3">
-              <ParlorPanel className="w-full max-w-xs text-center">
-                <p className="font-serif text-2xl text-cream">
-                  {view.winner === "p1"
-                    ? "West holds the table."
-                    : view.winner === "p2"
-                      ? "East holds the table."
-                      : "The house holds."}
-                </p>
-                <p className="mt-3 text-sm tracking-[0.12em] text-ink-muted">
-                  <span className="text-cream">{view.p1}</span>
-                  <span className="mx-2">·</span>
-                  <span className="text-gold">{view.p2}</span>
-                </p>
-                <button
-                  type="button"
-                  onClick={restart}
-                  className="mt-6 border border-gold/80 px-4 py-2 text-sm tracking-[0.14em] text-cream hover:border-gold hover:text-gold focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-4 focus-visible:outline-gold"
-                >
-                  Again
-                </button>
-              </ParlorPanel>
-            </div>
-          ) : null}
-        </div>
-      </div>
-
-      <div
-        ref={padsRef}
-        className="flex w-full max-w-xl items-start justify-between gap-6 px-2"
-      >
-        <DPad label="West" onTurn={(dir) => applyTurn("p1", dir)} />
-        <DPad label="East" onTurn={(dir) => applyTurn("p2", dir)} />
-      </div>
-
-      <p
-        ref={hintRef}
-        className="shrink-0 text-center text-xs tracking-[0.14em] text-ink-muted"
-      >
-        WASD west · arrows east. Space holds the table.
-      </p>
+    <div className="flex w-full flex-col items-center gap-4">
+      <DuelTable
+        stateRef={stateRef}
+        view={view}
+        control="both"
+        hint="WASD west · arrows east. Space holds the table."
+        notice={null}
+        onTurn={applyTurn}
+        onPause={togglePause}
+        onRestart={restart}
+      />
+      <button type="button" onClick={onLeave} className={quietClass}>
+        Leave the chairs
+      </button>
     </div>
-  );
-}
-
-function DPad({
-  label,
-  onTurn,
-}: {
-  label: string;
-  onTurn: (dir: Dir) => void;
-}) {
-  return (
-    <div className="grid grid-cols-3 grid-rows-3 gap-1.5" aria-label={label}>
-      <span />
-      <PadButton label={`${label} up`} onPress={() => onTurn("up")}>
-        <Chevron dir="up" />
-      </PadButton>
-      <span />
-      <PadButton label={`${label} left`} onPress={() => onTurn("left")}>
-        <Chevron dir="left" />
-      </PadButton>
-      <span className="flex items-center justify-center text-[10px] tracking-[0.14em] text-ink-muted">
-        {label}
-      </span>
-      <PadButton label={`${label} right`} onPress={() => onTurn("right")}>
-        <Chevron dir="right" />
-      </PadButton>
-      <span />
-      <PadButton label={`${label} down`} onPress={() => onTurn("down")}>
-        <Chevron dir="down" />
-      </PadButton>
-      <span />
-    </div>
-  );
-}
-
-function PadButton({
-  label,
-  onPress,
-  children,
-}: {
-  label: string;
-  onPress: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      className="flex h-11 w-11 touch-manipulation items-center justify-center border border-gold/50 text-cream hover:border-gold hover:text-gold focus-visible:outline focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-gold sm:h-12 sm:w-12"
-      onPointerDown={(event) => {
-        event.preventDefault();
-        onPress();
-      }}
-    >
-      {children}
-    </button>
-  );
-}
-
-function Chevron({ dir }: { dir: Dir }) {
-  const rotate =
-    dir === "up" ? "0" : dir === "right" ? "90" : dir === "down" ? "180" : "270";
-  return (
-    <svg
-      width="14"
-      height="14"
-      viewBox="0 0 14 14"
-      aria-hidden="true"
-      style={{ transform: `rotate(${rotate}deg)` }}
-    >
-      <path d="M7 3 L12 10 H2 Z" fill="currentColor" />
-    </svg>
   );
 }
